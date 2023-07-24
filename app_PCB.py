@@ -39,6 +39,8 @@ class detectWorker(QThread):
     stop_det = pyqtSignal()
     # Send result string
     send_result_text = pyqtSignal(list)
+    # End detect
+    end_det = pyqtSignal()
     def __init__(self) -> None:
         super(detectWorker, self).__init__()
         self.weights = ROOT / 'trainmodel/pcb.pt'
@@ -80,7 +82,6 @@ class detectWorker(QThread):
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
 ):
-        print('Started')
         source = str(self.source_det)
         save_img = not nosave and not source.endswith('.txt')  # save inference images
         is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -201,6 +202,8 @@ class detectWorker(QThread):
                     self.send_result_text.emit(resultList)
                 else:
                     continue
+                # Emit stop detect
+                self.end_det.emit()
             else:
                 self.stop_det.emit()
 
@@ -213,6 +216,8 @@ class myApp(Ui_MainWindow):
         self.detectWorker.send_img.connect(lambda x: self.UpdateImg(x, self.resultimg))
         # show result string
         self.detectWorker.send_result_text.connect(lambda x: self.UpdateResultDisplay(x, self.hole_dp, self.mouse_bite_dp, self.short_dp))
+        # End detection
+        self.detectWorker.end_det.connect(self.EndDetect)
         self.detectWorker.stop_det.connect(self.StopDetect)
         self.setupSignalMainWindows()
         # initial
@@ -295,12 +300,29 @@ class myApp(Ui_MainWindow):
             self.stop_bt.setEnabled(False)
             self.pause_bt.setEnabled(False)
             self.selected_video.setEnabled(True)
+        else:
+            self.selected_video.setEnabled(True)
+            self.run_bt.setEnabled(True)
+            self.stop_bt.setEnabled(False)
+            self.pause_bt.setEnabled(False)
         # Clear result image
         self.resultimg.clear()
         # clear result display widget
         self.hole_dp.display(0)
         self.mouse_bite_dp.display(0)
         self.short_dp.display(0)
+
+    # End detection
+    def EndDetect(self):
+        print('Success !')
+        if self.detectWorker.isRunning():
+            # terminate QThread
+            self.detectWorker.terminate()
+            # set button
+            self.run_bt.setEnabled(True)
+            self.stop_bt.setEnabled(False)
+            self.pause_bt.setEnabled(False)
+            self.selected_video.setEnabled(True)
         
     @staticmethod
     def UpdateImg(img_src, label):
