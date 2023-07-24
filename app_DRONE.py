@@ -317,7 +317,7 @@ class myApp(Ui_MainWindow):
         if self.detectWorker.isRunning():
             # terminate QThread
             try:
-                self.detectWorker.terminate()
+                self.detectWorker.quit()
             except:
                 pass
             # set button
