@@ -316,7 +316,10 @@ class myApp(Ui_MainWindow):
     def StopDetect(self):
         if self.detectWorker.isRunning():
             # terminate QThread
-            self.detectWorker.terminate()
+            try:
+                self.detectWorker.terminate()
+            except:
+                pass
             # set button
             self.run_bt.setEnabled(True)
             self.stop_bt.setEnabled(False)
