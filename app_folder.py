@@ -82,7 +82,7 @@ class detectWorker(QThread):
             randomIdx = np.random.randint(0, len(listFile))
             self.source = os.path.join(self.source_det, listFile[randomIdx])
             print(f'Source: {self.source}')
-            airplane = bird = drone, helicopter = 0
+            airplane = bird = drone = helicopter = 0
             if not self.jump_out:
                 source = str(self.source)
                 save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -186,8 +186,8 @@ class detectWorker(QThread):
 
                             if save_img or save_crop or view_img:  # Add bbox to image
                                 c = int(cls)  # integer class
-                                # label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                                label = None if hide_labels else (names[c] if hide_conf else f'{names[c]}')
+                                label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
+                                # label = None if hide_labels else (names[c] if hide_conf else f'{names[c]}')
                                 print(f'Class {c} {names[c]}: {conf:.2f}')
                                 annotator.box_label(xyxy, label, color=colors(c, True))
                             if save_crop:
@@ -207,7 +207,7 @@ class detectWorker(QThread):
                 continue
             # Emit stop detect
             self.end_det.emit()
-            sleep(5)
+            sleep(3)
 
 class myApp(Ui_MainWindow):
     def __init__(self) -> None:
@@ -253,7 +253,6 @@ class myApp(Ui_MainWindow):
             self.detectWorker.start()
             self.run_bt.setEnabled(False)
             self.stop_bt.setEnabled(True)
-            self.pause_bt.setEnabled(True)
             self.selected_video.setEnabled(False)
         
     def StopDetect(self):
@@ -280,7 +279,10 @@ class myApp(Ui_MainWindow):
         height, width, channel = img_src.shape
         bytesPerLine = channel * width
         # Resize 
-        img_src = cv2.resize(img_src, (int(width * 0.7), int(height * 0.7)), interpolation = cv2.INTER_AREA)
+        if width > 1000:
+            img_src = cv2.resize(img_src, (int(width * 0.5), int(height * 0.5)), interpolation = cv2.INTER_AREA)
+        else:
+            img_src = cv2.resize(img_src, (int(width * 0.7), int(height * 0.7)), interpolation = cv2.INTER_AREA)
         height, width, channel = img_src.shape
         bytesPerLine = channel * width
         qImg = QImage(img_src.data, width, height, bytesPerLine, QImage.Format_RGB888)
