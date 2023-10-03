@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMenu, QActi
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap
-from UI.ui import Ui_MainWindow
+from UI.ui_drone import Ui_MainWindow
 import sys
 from time import sleep
 app = QtWidgets.QApplication(sys.argv)
@@ -34,7 +34,6 @@ from utils.torch_utils import select_device, smart_inference_mode
 
 class detectWorker(QThread):
     send_img = pyqtSignal(np.ndarray)
-    stop_det = pyqtSignal()
     send_result_text = pyqtSignal(list)
     end_det = pyqtSignal()
 
@@ -83,7 +82,7 @@ class detectWorker(QThread):
             randomIdx = np.random.randint(0, len(listFile))
             self.source = os.path.join(self.source_det, listFile[randomIdx])
             print(f'Source: {self.source}')
-            missing_hole = mouse_bite = short = 0
+            airplane = bird = drone, helicopter = 0
             if not self.jump_out:
                 source = str(self.source)
                 save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -169,11 +168,13 @@ class detectWorker(QThread):
                             s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
                             s_result += f"{n} {names[int(c)]}{'s' * (n > 1)}, "
                             if int(c) == 0:
-                                missing_hole = n
+                                airplane = n
                             elif int(c) == 1:
-                                mouse_bite = n
+                                bird = n
+                            elif int(c) == 2:
+                                drone = n
                             else:
-                                short = n
+                                helicopter = n
 
                         # Write results
                         for *xyxy, conf, cls in reversed(det):
@@ -187,6 +188,7 @@ class detectWorker(QThread):
                                 c = int(cls)  # integer class
                                 # label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                                 label = None if hide_labels else (names[c] if hide_conf else f'{names[c]}')
+                                print(f'Class {c} {names[c]}: {conf:.2f}')
                                 annotator.box_label(xyxy, label, color=colors(c, True))
                             if save_crop:
                                 save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
@@ -199,15 +201,13 @@ class detectWorker(QThread):
                     except:
                         pass
                 # String result
-                resultList = [missing_hole, mouse_bite, short]
+                resultList = [airplane, bird, drone, helicopter]
                 self.send_result_text.emit(resultList)
             else:
                 continue
             # Emit stop detect
             self.end_det.emit()
-            sleep(2)
-        else:
-            self.stop_det.emit()
+            sleep(5)
 
 class myApp(Ui_MainWindow):
     def __init__(self) -> None:
@@ -217,7 +217,7 @@ class myApp(Ui_MainWindow):
         # show result images
         self.detectWorker.send_img.connect(lambda x: self.UpdateImg(x, self.resultimg))
         # show result string
-        self.detectWorker.send_result_text.connect(lambda x: self.UpdateResultDisplay(x, self.hole_dp, self.mouse_bite_dp, self.short_dp))
+        self.detectWorker.send_result_text.connect(lambda x: self.UpdateResultDisplay(x, self.airplane_dp, self.bird_dp, self.drone_dp, self.helicopter_dp))
         self.detectWorker.end_det.connect(self.EndDetect)
         # Intial Slider Conf
         self.conf_slider.setValue(50)
@@ -228,6 +228,7 @@ class myApp(Ui_MainWindow):
         self.selected_video.clicked.connect(self.SelectedSource)
         self.run_bt.clicked.connect(self.StartDetect)
         self.stop_bt.clicked.connect(self.StopDetect)
+        self.conf_slider.sliderReleased.connect(self.UpdateConf)
 
     def SelectedSource(self):
         dir = str(QFileDialog.getExistingDirectory(MainWindow, "Select Directory"))
@@ -260,20 +261,18 @@ class myApp(Ui_MainWindow):
             self.detectWorker.terminate()
             self.run_bt.setEnabled(True)
             self.stop_bt.setEnabled(False)
-            self.pause_bt.setEnabled(False)
             self.selected_video.setEnabled(True)
         else:
             self.selected_video.setEnabled(True)
             self.run_bt.setEnabled(True)
             self.stop_bt.setEnabled(False)
-            self.pause_bt.setEnabled(False)
         # Clear result image
         self.resultimg.clear()
         # clear result display widget
-        self.hole_dp.display(0)
-        self.mouse_bite_dp.display(0)
-        self.short_dp.display(0)
-
+        self.airplane_dp.display(0)
+        self.bird_dp.display(0)
+        self.drone_dp.display(0)
+        self.helicopter_dp.display(0)
 
     @staticmethod
     def UpdateImg(img_src, label):
@@ -289,11 +288,11 @@ class myApp(Ui_MainWindow):
         label.setPixmap(pixmap)
 
     @staticmethod
-    def UpdateResultDisplay(result, misshole_dp, bite_dp, short_dp):
-        misshole_dp.display(int(result[0]))
-        bite_dp.display(int(result[1]))
-        short_dp.display(int(result[2]))
-
+    def UpdateResultDisplay(result, airplane_dp, bird_dp, drone_dp, helicopter_dp):
+        airplane_dp.display(int(result[0]))
+        bird_dp.display(int(result[1]))
+        drone_dp.display(int(result[2]))
+        helicopter_dp.display(int(result[3]))   
         
 if __name__ == '__main__':
     obj = myApp()  
