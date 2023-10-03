@@ -1,0 +1,1 @@
+pyuic5 -x ui_drone.ui -o ui_drone.py
